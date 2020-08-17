@@ -1,6 +1,7 @@
 #----------------------------------------------------------------------------#
 # Imports
 #----------------------------------------------------------------------------#
+
 import json
 import dateutil.parser
 import babel
@@ -12,6 +13,8 @@ from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
 from flask_migrate import Migrate, MigrateCommand
+
+from models import db, Artist, Venue, Shows
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -19,50 +22,11 @@ from flask_migrate import Migrate, MigrateCommand
 app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
-db = SQLAlchemy(app)
+#db = SQLAlchemy(app) BELOW STATMENT(LINE26) FOUND ONLINE I BELIEVE DOES THE SAME AS THIS LINE
+db.init_app(app)
 migrate = Migrate(app, db)
 # TODO: connect to a local postgresql database DONE IN CONFIG FILE
 
-#----------------------------------------------------------------------------#
-# Models.
-#----------------------------------------------------------------------------#
-
-class Venue(db.Model):
-    __tablename__ = 'Venue'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate 
-
-class Artist(db.Model):
-    __tablename__ = 'Artist'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-
-# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
-class Shows(db.Model):
-  _tablename_ = "Show"
-
-  id = db.Column(db.Integer, primary_key=True)
-  artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False)
-  venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
-  start_time = db.Column(db.DateTime, nullable=False)
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -94,9 +58,35 @@ def index():
 def venues():
   # TODO: replace with real venues data.
   #       num_shows should be aggregated based on number of upcoming shows per venue.
-  
-  data = Venue.query.all() 
-  return render_template('pages/venues.html', areas=data);
+  venues = Venue.query.order_by(Venue.state, Venue.city).all()
+
+  #Variable That will hold legit data appened from the temp_data variable
+  data=[]
+  previous_city=""
+  previous_state=""
+
+  #Holds temporary data to be appended to variable data
+  temp_data={}
+
+  for venue in venues:
+    venue_data = {
+      'id': venue.id,
+      'name': venue.name,
+    }
+    if venue.city == previous_city and venue.state == previous_state:
+        temp_data['venues'].append(venue_data)
+    else:
+        if previous_city is not "":
+            data.append(temp_data)
+        temp_data['city'] = venue.city
+        temp_data['state'] = venue.state
+        temp_data['venues'] = [venue_data]
+    previous_city = venue.city
+    previous_state = venue.state
+
+    data.append(temp_data)
+    return render_template('pages/venues.html', areas=data)
+
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
